@@ -16,7 +16,8 @@ Genera en results/:
 
 Para lanzarlo, desde la raíz del repositorio:  python scripts/resultados.py
 
-Las partes ya calculadas no se repiten. Con 16 núcleos tarda alrededor de 1 hora y media.
+Las partes ya calculadas no se repiten, y cada familia de algoritmos se guarda al terminar.
+Con 16 núcleos tarda alrededor de 1 hora y media.
 """
 import json
 import sys
@@ -45,6 +46,9 @@ PROCESOS = {"dqn": 15, "reinforce": 15, "a3c": 4}
 TRABAJADORES_ESCALADO = (1, 2, 4, 8)
 SEMILLAS_ESCALADO = (200, 201)
 MERCADOS_ESCALADO = ("ciclo", "reversion")
+# entrenamientos.csv va el último: una familia solo cuenta como hecha cuando se ha escrito todo lo demás
+ARCHIVOS = {"test": "test_por_serie.csv.gz", "curvas": "curvas_validacion.csv", "ganancia": "ganancia_episodios.csv.gz",
+            "runs": "entrenamientos.csv"}
 
 
 def configuraciones(familia):
@@ -74,23 +78,36 @@ def _guardar(salida, tablas):
                                                                         "estado": res.estado}
 
 
+def _familia_hecha(familia):
+    ruta = RESULTADOS / ARCHIVOS["runs"]
+    return ruta.exists() and set(VARIANTES[familia]) <= set(pd.read_csv(ruta, usecols=["agente"])["agente"])
+
+
+def _escribir(tablas):
+    """Añade a results/ lo que acaba de entrenarse, sin tocar lo que ya había de otras familias."""
+    ruta_mapas, ruta_modelos = RESULTADOS / "mapas_politica.npz", RESULTADOS / "modelos.pt"
+    mapas = dict(np.load(ruta_mapas)) if ruta_mapas.exists() else {}
+    np.savez_compressed(ruta_mapas, **(mapas | tablas["mapas"]))
+    modelos = torch.load(ruta_modelos, weights_only=False) if ruta_modelos.exists() else {}
+    torch.save(modelos | tablas["modelos"], ruta_modelos)
+    for clave, archivo in ARCHIVOS.items():
+        ruta = RESULTADOS / archivo
+        nuevas = pd.DataFrame(tablas[clave]) if clave == "runs" else pd.concat(tablas[clave])
+        (pd.concat([pd.read_csv(ruta), nuevas]) if ruta.exists() else nuevas).to_csv(ruta, index=False)
+
+
 def entrenar_finales():
-    if (RESULTADOS / "test_por_serie.csv.gz").exists():
-        print("entrenamientos finales: ya calculados", flush=True)
-        return
-    tablas = {"test": [], "runs": [], "curvas": [], "ganancia": [], "mapas": {}, "modelos": {}}
     for familia in ("dqn", "reinforce", "a3c"):
+        if _familia_hecha(familia):
+            print(f"entrenamientos finales de {familia}: ya calculados", flush=True)
+            continue
+        tablas = {"test": [], "runs": [], "curvas": [], "ganancia": [], "mapas": {}, "modelos": {}}
         configs = configuraciones(familia)
         print(f"[{time.strftime('%H:%M:%S')}] {familia}: {len(configs)} entrenamientos", flush=True)
         with ProcessPoolExecutor(max_workers=PROCESOS[familia]) as pool:
             for futuro in as_completed([pool.submit(_ejecutar_en_test, c) for c in configs]):
                 _guardar(futuro.result(), tablas)
-    pd.concat(tablas["test"]).to_csv(RESULTADOS / "test_por_serie.csv.gz", index=False)
-    pd.DataFrame(tablas["runs"]).to_csv(RESULTADOS / "entrenamientos.csv", index=False)
-    pd.concat(tablas["curvas"]).to_csv(RESULTADOS / "curvas_validacion.csv", index=False)
-    pd.concat(tablas["ganancia"]).to_csv(RESULTADOS / "ganancia_episodios.csv.gz", index=False)
-    np.savez_compressed(RESULTADOS / "mapas_politica.npz", **tablas["mapas"])
-    torch.save(tablas["modelos"], RESULTADOS / "modelos.pt")
+        _escribir(tablas)
 
 
 def evaluar_baselines():

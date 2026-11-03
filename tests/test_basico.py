@@ -9,6 +9,7 @@ import torch
 
 from rl_trader.a3c import entrenar_a3c, entrenar_reinforce
 from rl_trader.agentes import Agente, crear_agente
+from rl_trader.analisis import entropia_relativa
 from rl_trader.baselines import BASELINES
 from rl_trader.dqn import Buffer, entrenar_dqn
 from rl_trader.entrenamiento import MejorControl, decaimiento_exponencial
@@ -182,6 +183,22 @@ def test_a3c_con_procesos_se_ejecuta_y_cambia_los_pesos():
     assert any(not torch.equal(v, inicial.state_dict()[k]) for k, v in res.estado_final.items())
 
 
+def test_a3c_el_paso_de_adam_no_hace_saltar_los_pesos():
+    # Con α = 3e-4 y 8 episodios, los pesos apenas se mueven. Sin cerrojo en el paso de Adam saltaban a más de 1.000
+    # en más de la mitad de las ejecuciones, y el agente dejaba de operar.
+    g = GENERADORES["browniano"]
+    norm = Normalizador.ajustar(g, n_series=5)
+    for _ in range(3):
+        res = entrenar_a3c(g, norm, n_episodios=8, n_trabajadores=2, seed=1, perdida_critico="mae")
+        assert max(v.abs().max().item() for v in res.estado_final.values()) < 5
+        assert (res.historial["ganancia"] != 0).all()
+
+
+def test_entropia_relativa_no_desborda_con_logits_enormes():
+    assert entropia_relativa(np.array([[2000.0, -500.0, 0.0]])) == pytest.approx(0)
+    assert entropia_relativa(np.zeros((1, 3))) == pytest.approx(1)
+
+
 def test_reinforce_actualiza_al_final_del_episodio():
     g = GENERADORES["browniano"]
     norm = Normalizador.ajustar(g, n_series=5)
@@ -226,6 +243,31 @@ def test_dqn_por_episodio_entero_sin_minibatches():
     res = entrenar_dqn(g, norm, n_episodios=15, gamma=0.0, seed=3, precios_validacion=val, evaluar_cada=5,
                        modo="episodio", pasadas_episodio=16, alpha=2e-3)
     assert res.pasos == 15 * 494 and len(res.validacion) == 3
+
+
+def test_diagnostico_distingue_oscilar_de_seguir_subiendo():
+    """Una curva que aún sube tiene deriva; una que oscila sin tendencia tiene oscilación, pero no deriva."""
+    from rl_trader.analisis import diagnostico_convergencia
+    n = 40
+    sube = pd.DataFrame({"mercado": "m", "agente": "sube", "seed": 0, "episodio": range(n),
+                         "ganancia": np.linspace(0, 8, n)})
+    oscila = pd.DataFrame({"mercado": "m", "agente": "oscila", "seed": 0, "episodio": range(n),
+                           "ganancia": [4 + (-1) ** i for i in range(n)]})
+    d = diagnostico_convergencia(pd.concat([sube, oscila])).set_index("agente")
+    assert d.loc["sube", "deriva"] > 1.5 and abs(d.loc["oscila", "deriva"]) < 1e-9
+    assert d.loc["oscila", "oscilacion"] == pytest.approx(1.0)
+
+
+def test_los_oraculos_son_coherentes_con_la_teoria():
+    """El oráculo gana a buy & hold donde hay información oculta, y en browniano coincide con él."""
+    from rl_trader.oraculos import tabla_oraculos
+    techos = tabla_oraculos(30, SEMILLA_VALIDACION).set_index("mercado")
+    for mercado in GENERADORES:
+        bh = evaluar(BASELINES["buy_and_hold"](), generar_series(GENERADORES[mercado], 30, SEMILLA_VALIDACION))
+        if mercado == "browniano":
+            assert techos.loc[mercado, "ganancia_G"] == pytest.approx(bh["ganancia"].mean())
+        else:
+            assert techos.loc[mercado, "ganancia_G"] > bh["ganancia"].mean()
 
 
 def test_crear_agente_elige_la_clase():

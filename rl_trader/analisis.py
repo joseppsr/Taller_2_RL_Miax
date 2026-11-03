@@ -5,9 +5,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .evaluation import ic_bootstrap_pareado
+from .evaluation import episodio_convergencia, ic_bootstrap_pareado
 
 RESULTADOS = Path(__file__).resolve().parent.parent / "results"
+# Tolerancia absoluta del criterio de convergencia sobre G (la relativa sigue siendo del 10%)
+TOLERANCIA_G = 0.02
 
 MERCADOS = ["ciclo", "browniano", "reversion", "regimenes"]
 NOMBRES_MERCADO = {"ciclo": "1. Tendencia + ciclo", "browniano": "2. Browniano",
@@ -29,10 +31,13 @@ def tabla_resultados(test=None):
     """Una fila por mercado y agente: rendimiento en test y convergencia.
 
     El tiempo de convergencia es el episodio de convergencia (mediana de las semillas)
-    por los segundos por episodio medidos con la máquina descargada.
+    por los segundos por episodio medidos con la máquina descargada. Se mide sobre la
+    mediana del retorno y, aparte, sobre la ganancia G: en ciclo, una mediana de +80.000%
+    varía más de un 10% entre controles por puro ruido, y solo la segunda es informativa.
     """
     test = cargar_test() if test is None else test
     entrenamientos = pd.read_csv(RESULTADOS / "entrenamientos.csv")
+    curvas = pd.read_csv(RESULTADOS / "curvas_validacion.csv")
     tiempos = pd.read_csv(RESULTADOS / "tiempos.csv").set_index("agente")["seg_por_episodio"]
     filas = []
     for mercado in MERCADOS:
@@ -49,9 +54,13 @@ def tabla_resultados(test=None):
             if len(e):
                 por_semilla = d.groupby("seed")["retorno_pct"].median()
                 conv = e["episodio_convergencia"].median()
+                c = curvas[(curvas.mercado == mercado) & (curvas.agente == agente)]
+                conv_g = np.median([episodio_convergencia(x.sort_values("episodio"), columna="ganancia",
+                                                          tol_abs=TOLERANCIA_G) for _, x in c.groupby("seed")])
                 fila |= {"mediana_min_semilla": por_semilla.min(), "mediana_max_semilla": por_semilla.max(),
                          "episodios": e["n_episodios"].iloc[0], "convergencia_ep": conv,
-                         "convergencia_s": conv * tiempos[agente],
+                         "convergencia_s": conv * tiempos[agente], "convergencia_G_ep": conv_g,
+                         "convergencia_G_s": conv_g * tiempos[agente],
                          "entrenamiento_s": e["n_episodios"].iloc[0] * tiempos[agente]}
             filas.append(fila)
     return pd.DataFrame(filas)
@@ -89,6 +98,60 @@ def tabla_perdidas():
                                                     "episodio_convergencia"]].mean().reset_index()
         salida.append(agregado.rename(columns={columna: "perdida"}).assign(familia=familia))
     return pd.concat(salida, ignore_index=True)
+
+
+def diagnostico_convergencia(curvas):
+    """Mide por mercado y agente si la curva de validación se ha estabilizado, sobre la ganancia G.
+
+    Compara, en cada semilla, el último cuarto de la curva con el cuarto anterior:
+    - deriva: cuánto sigue cambiando el nivel. Si es grande, aún no ha llegado.
+    - oscilacion: desviación típica dentro del último cuarto. Si es grande, no se asienta.
+    - caida_desde_mejor: cuánto queda el nivel final por debajo del mejor control. Si es
+      grande, el mejor control fue un pico puntual, no un nivel que se mantiene.
+    - rango_semillas: distancia entre semillas al final. Si es grande, depende de la suerte.
+    """
+    filas = []
+    for (mercado, agente), datos in curvas.groupby(["mercado", "agente"]):
+        por_semilla = []
+        for _, d in datos.groupby("seed"):
+            g = d.sort_values("episodio")["ganancia"].to_numpy()
+            cuarto = max(1, len(g) // 4)
+            ultimo, anterior = g[-cuarto:], g[-2 * cuarto:-cuarto]
+            por_semilla.append({"final": ultimo.mean(), "deriva": ultimo.mean() - anterior.mean(),
+                                "oscilacion": ultimo.std(), "caida_desde_mejor": g.max() - ultimo.mean()})
+        s = pd.DataFrame(por_semilla)
+        filas.append({"mercado": mercado, "agente": agente, **s.mean().to_dict(),
+                      "rango_semillas": s["final"].max() - s["final"].min()})
+    return pd.DataFrame(filas)
+
+
+def mejor_frente_a_ultimo():
+    """Mediana en test con los pesos del mejor control y con los del último: si difieren mucho, la política oscila."""
+    d = pd.read_csv(RESULTADOS / "test_por_serie.csv.gz")
+    tabla = d[d["version"].isin(["test", "test_ultimo"])].groupby(["mercado", "agente", "version"])["retorno_pct"]
+    return tabla.median().unstack("version")
+
+
+def entropia_relativa(logits):
+    """Entropía media de softmax(logits), en proporción a la máxima. Resta el máximo para que exp no desborde."""
+    log_p = logits - logits.max(axis=-1, keepdims=True)
+    log_p = log_p - np.log(np.exp(log_p).sum(axis=-1, keepdims=True))
+    return float(-(np.exp(log_p) * log_p).sum(axis=-1).mean() / np.log(3))
+
+
+def entropia_final():
+    """Entropía media de la política final de los métodos de actor, en proporción a la máxima (log 3).
+
+    Cerca de 1, la política sigue siendo casi aleatoria. Cerca de 0, ya es casi determinista.
+    """
+    mapas = np.load(RESULTADOS / "mapas_politica.npz")
+    filas = []
+    for clave in mapas.files:
+        mercado, agente, seed = clave.split("|")
+        if agente in ("a3c", "reinforce"):
+            filas.append({"mercado": mercado, "agente": agente, "seed": int(seed),
+                          "entropia_relativa": entropia_relativa(mapas[clave])})
+    return pd.DataFrame(filas).groupby(["mercado", "agente"])["entropia_relativa"].mean().unstack()
 
 
 def configuraciones_elegidas():

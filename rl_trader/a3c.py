@@ -9,8 +9,12 @@ con su copia de la red. Cada n pasos, el trabajador:
    - actor: −log π(a_t|s_t) · δ_t − β · H(π(·|s_t)), donde la entropía H sustituye a ε
      como mecanismo de exploración;
    - crítico: δ_t² / 2 (MSE, como en las slides) o |δ_t| (MAE).
-4. Aplica esos gradientes a los pesos globales sin esperar a nadie ni usar cerrojos.
+4. Aplica esos gradientes a los pesos globales sin esperar a que los demás terminen los suyos.
    Esa asincronía es la que descorrelaciona las experiencias, y por eso A3C no necesita buffer.
+
+El paso de Adam, y solo él, va con un cerrojo corto. Sin él, un trabajador puede leer la media m
+ya actualizada por otro con la varianza v aún a cero, y el paso m / (√v + 1e-8) lleva los pesos
+de 0,7 a más de 1.000 en una sola actualización: la política se satura y el agente deja de operar.
 
 Actor y crítico tienen cada uno su red y su tamaño de paso (α_θ y α_w), como en las slides 7.
 
@@ -52,9 +56,9 @@ def _estado_adam_compartido(red):
 class Trabajador:
     """Un trabajador de A3C: su red local en self.modelo y los pesos compartidos en self.modelo_global."""
 
-    def __init__(self, indice, modelo_global, estado_adam, contador, ganancias, retornos_pct, generador, normalizador,
-                 c):
-        self.modelo_global, self.contador = modelo_global, contador
+    def __init__(self, indice, modelo_global, estado_adam, cerrojo, contador, ganancias, retornos_pct, generador,
+                 normalizador, c):
+        self.modelo_global, self.cerrojo, self.contador = modelo_global, cerrojo, contador
         self.ganancias, self.retornos_pct = ganancias, retornos_pct
         self.generador, self.normalizador, self.c = generador, normalizador, c
         torch.manual_seed(c["seed"] * 1000 + indice)
@@ -92,7 +96,8 @@ class Trabajador:
         # Los gradientes calculados en la red local se aplican a los pesos globales
         for p_global, p_local in zip(self.modelo_global.parameters(), self.modelo.parameters()):
             p_global.grad = p_local.grad
-        self.optimizador.step()
+        with self.cerrojo:
+            self.optimizador.step()
 
     def _episodio(self, ep):
         c = self.c
@@ -172,7 +177,7 @@ def entrenar_a3c(generador, normalizador, n_episodios=2000, n_steps=N_STEPS, alp
     # Cada trabajador apunta aquí la ganancia de los episodios que le tocan
     ganancias = ctx.RawArray("d", n_episodios)
     retornos_pct = ctx.RawArray("d", n_episodios)
-    args = (modelo, estado_adam, contador, ganancias, retornos_pct, generador, normalizador, c)
+    args = (modelo, estado_adam, ctx.Lock(), contador, ganancias, retornos_pct, generador, normalizador, c)
     # Con un trabajador no hace falta otro proceso: un hilo evita el coste de arrancarlo
     trabajadores = [threading.Thread(target=_lanzar_trabajador, args=(barrera, 0, *args))] if n_trabajadores == 1 else \
         [ctx.Process(target=_lanzar_trabajador, args=(barrera, i, *args)) for i in range(n_trabajadores)]

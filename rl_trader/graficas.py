@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.ticker import FuncFormatter, NullFormatter
 
 from .analisis import AGENTES_RL, BASELINES, MERCADOS, NOMBRES_AGENTE, NOMBRES_MERCADO, RESULTADOS
 
@@ -17,6 +18,8 @@ SECUENCIAL = LinearSegmentedColormap.from_list(
     "azules", ["#f4f8fd", "#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"])
 FAMILIAS = (("Basados en valor (DQN)", ["dqn", "doble_dqn", "duelo"]), ("Basados en política", ["a3c", "reinforce"]))
 FIGURAS = RESULTADOS.parent / "figures"
+# Marcas del eje de capital en los paneles que no llegan a abarcar una década
+MARCAS_CAPITAL = (0.6, 0.8, 1, 1.25, 1.5, 2)
 
 
 def aplicar_estilo():
@@ -77,7 +80,7 @@ def curvas_por_episodio(datos, columna, titulo, ylabel, referencias=None, frac_v
             _referencias(ax, referencias, mercado)
             if i == 0:
                 ax.set_title(familia, fontweight="bold")
-                ax.legend(loc="lower right", ncols=len(agentes))
+                ax.legend(loc="center right", ncols=len(agentes))
             if j == 0:
                 ax.set_ylabel(f"{NOMBRES_MERCADO[mercado]}\n{ylabel}")
             if i == len(MERCADOS) - 1:
@@ -121,6 +124,11 @@ def graficar_capital(test, nombre="capital_final"):
         ax.set_xscale("log")
         ax.set_title(NOMBRES_MERCADO[mercado], fontweight="bold")
         ax.set_xlabel("Capital final / inicial")
+        ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+        ax.xaxis.set_minor_formatter(NullFormatter())
+        bajo, alto = ax.get_xlim()
+        if alto / bajo < 10:
+            ax.set_xticks([m for m in MARCAS_CAPITAL if bajo <= m <= alto])
         ax.set_yticks(range(len(agentes)), [NOMBRES_AGENTE[a] for a in agentes[::-1]])
         ax.grid(axis="y", visible=False)
     fig.tight_layout()
@@ -178,7 +186,7 @@ def graficar_ajuste(familia, nombre=None):
         ax.grid(False)
         umbral = (np.nanmin(v) + np.nanmax(v)) / 2
         for (fila, col), valor in np.ndenumerate(v):
-            texto = f"{valor / 1000:.0f}K" if abs(valor) >= 1e4 else f"{valor:.1f}"
+            texto = f"{valor / 1000:.0f}K" if abs(valor) >= 1e3 else f"{valor:.1f}"
             ax.text(col, fila, texto, ha="center", va="center", fontsize=8,
                     color="white" if valor > umbral else TINTA)
         ax.set_title(NOMBRES_MERCADO[mercado], fontweight="bold")

@@ -7,7 +7,7 @@ más parecido a un mercado real. Cada agente se entrena con 10 semillas.
 Genera en results/ solo métricas, nunca precios: reales_resultados.csv.
 
 Para lanzarlo, después de scripts/ajuste.py:  python scripts/datos_reales.py
-Si el resultado ya existe no se repite. Con 16 núcleos tarda alrededor de media hora.
+Lo ya calculado no se repite, y cada agente se guarda al terminar. Con 16 núcleos tarda alrededor de media hora.
 """
 import json
 import sys
@@ -65,19 +65,21 @@ def _referencias():
 
 def main():
     ruta = RESULTADOS / "reales_resultados.csv"
-    if ruta.exists():
-        print("datos reales: ya calculados")
-        return
     mejores = pd.read_csv(RESULTADOS / "mejores.csv").set_index(["familia", "mercado"])
-    filas = _referencias()
+    tabla = pd.read_csv(ruta) if ruta.exists() else pd.DataFrame(_referencias())
     for familia in ("dqn", "a3c"):
+        if (tabla["agente"] == familia).any():
+            print(f"datos reales de {familia}: ya calculados", flush=True)
+            continue
         config = json.loads(mejores.loc[(familia, "regimenes"), "config"])
+        filas = []
         with ProcessPoolExecutor(max_workers=PROCESOS[familia]) as pool:
             futuros = [pool.submit(_entrenar, a, familia, config | {"seed": s}) for a in ACTIVOS for s in SEMILLAS]
             for futuro in as_completed(futuros):
                 filas += futuro.result()
+        tabla = pd.concat([tabla, pd.DataFrame(filas)])
+        tabla.to_csv(ruta, index=False)
         print(f"{familia}: terminado", flush=True)
-    pd.DataFrame(filas).to_csv(ruta, index=False)
 
 
 if __name__ == "__main__":

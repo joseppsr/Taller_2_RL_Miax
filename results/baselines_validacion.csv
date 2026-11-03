@@ -1,0 +1,17 @@
+mercado,agente,ganancia
+ciclo,aleatorio,3.0645938703630797
+ciclo,buy_and_hold,6.458694689007352
+ciclo,momentum,7.8109709091432045
+ciclo,contrarian,-1.5364769791034265
+browniano,aleatorio,-0.11435108553084325
+browniano,buy_and_hold,0.1030644909636076
+browniano,momentum,-0.03823337572663815
+browniano,contrarian,-0.09229824511442525
+reversion,aleatorio,-0.07956795455226659
+reversion,buy_and_hold,0.10315164578480189
+reversion,momentum,-0.24324272880463677
+reversion,contrarian,0.09971040051312915
+regimenes,aleatorio,-0.1763140514553072
+regimenes,buy_and_hold,-0.07895749330277559
+regimenes,momentum,-0.14131656542323856
+regimenes,contrarian,-0.1758399777550266
