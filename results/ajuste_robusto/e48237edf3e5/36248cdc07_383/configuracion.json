@@ -1,0 +1,29 @@
+{
+  "config": {
+    "algoritmo": "dqn",
+    "alpha": 0.002,
+    "capacidad": 100000,
+    "entrenar_cada": 4,
+    "eps_final": 0.01,
+    "eps_inicial": 1.0,
+    "evaluar_cada": 50,
+    "frac_decaimiento": 0.7,
+    "gamma": 0.5,
+    "inicio_aprendizaje": 1000,
+    "max_norma_grad": 10.0,
+    "mercado": "reversion",
+    "modo": "minibatch",
+    "n_episodios": 400,
+    "n_steps": 500,
+    "n_validacion": 100,
+    "ocultas": [
+      64,
+      64
+    ],
+    "pasadas_episodio": 1,
+    "perdida": "mae",
+    "sincronizar_cada": 1000,
+    "tam_lote": 64,
+    "seed": 383
+  }
+}

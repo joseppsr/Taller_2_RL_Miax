@@ -1,0 +1,26 @@
+{
+  "config": {
+    "algoritmo": "a3c",
+    "alpha": 0.0003,
+    "alpha_critico": 0.0009,
+    "beta_final": 0.001,
+    "beta_inicial": 0.2,
+    "evaluar_cada": 50,
+    "frac_decaimiento": 0.7,
+    "gamma": 0.9,
+    "max_norma_grad": 5.0,
+    "mercado": "reversion",
+    "n_episodios": 3200,
+    "n_pasos": 20,
+    "n_steps": 500,
+    "n_trabajadores": 4,
+    "n_validacion": 100,
+    "ocultas": [
+      64,
+      64
+    ],
+    "perdida_critico": "mae",
+    "usar_critico": true,
+    "seed": 384
+  }
+}
