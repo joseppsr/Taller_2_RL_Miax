@@ -1,0 +1,20 @@
+{
+  "config": {
+    "algoritmo": "a3c",
+    "alpha": 0.0003,
+    "alpha_critico": 0.0009,
+    "beta_final": 0.001,
+    "beta_inicial": 0.2,
+    "evaluar_cada": 200,
+    "frac_decaimiento": 0.7,
+    "gamma": 0.9,
+    "n_episodios": 3200,
+    "n_pasos": 20,
+    "n_trabajadores": 4,
+    "perdida_critico": "mae",
+    "seed": 360
+  },
+  "factor_final": 1.0,
+  "variante": "original",
+  "n_validacion": 100
+}

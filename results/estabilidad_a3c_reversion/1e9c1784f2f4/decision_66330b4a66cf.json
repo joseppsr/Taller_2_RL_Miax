@@ -1,0 +1,33 @@
+{
+  "decision": "original",
+  "candidato": "original",
+  "modelos": [
+    {
+      "variante": "original",
+      "seed": 360,
+      "ruta_pesos": "C:\\Users\\Natalia\\workplace\\Taller_2_RL_Miax\\results\\estabilidad_a3c_reversion\\1e9c1784f2f4\\original_360\\pesos.pt"
+    },
+    {
+      "variante": "original",
+      "seed": 361,
+      "ruta_pesos": "C:\\Users\\Natalia\\workplace\\Taller_2_RL_Miax\\results\\estabilidad_a3c_reversion\\1e9c1784f2f4\\original_361\\pesos.pt"
+    },
+    {
+      "variante": "original",
+      "seed": 362,
+      "ruta_pesos": "C:\\Users\\Natalia\\workplace\\Taller_2_RL_Miax\\results\\estabilidad_a3c_reversion\\1e9c1784f2f4\\original_362\\pesos.pt"
+    },
+    {
+      "variante": "original",
+      "seed": 363,
+      "ruta_pesos": "C:\\Users\\Natalia\\workplace\\Taller_2_RL_Miax\\results\\estabilidad_a3c_reversion\\1e9c1784f2f4\\original_363\\pesos.pt"
+    },
+    {
+      "variante": "original",
+      "seed": 364,
+      "ruta_pesos": "C:\\Users\\Natalia\\workplace\\Taller_2_RL_Miax\\results\\estabilidad_a3c_reversion\\1e9c1784f2f4\\original_364\\pesos.pt"
+    }
+  ],
+  "semilla_test": 4170000000,
+  "n_test": 100
+}

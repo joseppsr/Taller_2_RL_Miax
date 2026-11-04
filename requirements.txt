@@ -1,0 +1,13 @@
+# Dependencias de ejecucion
+numpy==2.4.6
+pandas==3.1.1
+matplotlib==3.11.2
+gymnasium==1.4.0
+torch==2.15.0
+yfinance==1.8.0
+
+# Notebook y pruebas
+ipython==9.18.1
+ipykernel==7.4.0
+jupyterlab==4.6.5
+pytest==9.2.0
