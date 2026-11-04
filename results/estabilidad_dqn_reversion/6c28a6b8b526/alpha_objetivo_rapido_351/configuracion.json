@@ -1,0 +1,17 @@
+{
+  "config": {
+    "alpha": 0.002,
+    "eps_final": 0.01,
+    "eps_inicial": 1.0,
+    "evaluar_cada": 25,
+    "frac_decaimiento": 0.7,
+    "gamma": 0.5,
+    "n_episodios": 400,
+    "perdida": "mse",
+    "seed": 351,
+    "sincronizar_cada": 500
+  },
+  "factor_final": 0.3,
+  "variante": "alpha_objetivo_rapido",
+  "n_validacion": 100
+}

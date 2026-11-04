@@ -1,0 +1,26 @@
+{
+  "variante": "solo_alpha",
+  "confirmada": true,
+  "semillas": [
+    360,
+    361,
+    362,
+    363,
+    364
+  ],
+  "favorables_G": 5,
+  "favorables_retorno": 5,
+  "config": {
+    "alpha": 0.002,
+    "eps_final": 0.01,
+    "eps_inicial": 1.0,
+    "evaluar_cada": 25,
+    "frac_decaimiento": 0.7,
+    "gamma": 0.5,
+    "n_episodios": 400,
+    "perdida": "mse",
+    "sincronizar_cada": 1000
+  },
+  "n_validacion": 100,
+  "referencia": "C:\\Users\\Natalia\\workplace\\Taller_2_RL_Miax\\results\\estabilidad_dqn_reversion\\6c28a6b8b526"
+}
