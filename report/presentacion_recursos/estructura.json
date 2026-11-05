@@ -1,0 +1,74 @@
+[
+  {
+    "titulo": "",
+    "segundos": 20,
+    "notas": "Somos Josep Peréz Segura, Emilio Sanchez Martínez y Natalia San José Ortega. Presentamos un agente que decide cuándo comprar, mantener o vender un único activo. Además de comparar DQN y A3C, hemos estudiado una pregunta práctica: cómo evitar que un agente pierda al final del entrenamiento lo que ya había aprendido.",
+    "fuente": "Proyecto y report/informe.pdf"
+  },
+  {
+    "titulo": "¿Cuándo conviene estar dentro del mercado?",
+    "segundos": 45,
+    "notas": "El agente empieza con mil unidades de capital. Solo observa la tendencia calculada con los últimos seis precios y si tiene o no el activo. Decide vender, mantener o comprar. Al comprar invierte el efectivo disponible y al vender cierra la posición. Cada operación efectiva tiene una comisión del 0,1%. La recompensa recoge el retorno del siguiente paso si está invertido, menos la penalización de operar. Por eso no buscamos que opere mucho: puede aprender que mantenerse fuera es mejor. Conservamos el entorno del enunciado y dejamos que la red reciba la tendencia continua, sin convertirla en intervalos.",
+    "fuente": "rl_trader/env.py; report/informe.md, sección 1"
+  },
+  {
+    "titulo": "Cuatro mercados, cuatro comportamientos",
+    "segundos": 45,
+    "notas": "Probamos los cuatro generadores del taller. En el ciclo esperamos que seguir la tendencia ayude. En el browniano hay poca señal aprovechable. En reversión, las caídas extremas pueden anticipar un rebote hacia la media. En regímenes alternan fases alcistas y bajistas, pero el agente no observa directamente el régimen. Estos gráficos son ejemplos generados con el código del proyecto, no precios reales. Todos parten de un índice cien; el ciclo usa escala logarítmica y los ejes no son comparables entre paneles. Esta diversidad permite comprobar si el agente aprende una respuesta coherente con cada mercado.",
+    "fuente": "rl_trader/prices.py; series ilustrativas, semilla 12, 500 pasos"
+  },
+  {
+    "titulo": "DQN valora acciones; A3C aprende una política",
+    "segundos": 50,
+    "notas": "DQN estima cuánto vale cada acción con una red neuronal. Guarda experiencias y entrena con lotes aleatorios; utiliza otra red como referencia para calcular los valores futuros. A3C separa el actor, que decide, del crítico, que estima el valor del estado. Cuatro trabajadores recorren series distintas y actualizan pesos compartidos. Encontramos una cuestión importante de implementación: el estado de Adam podía quedar inconsistente si varios procesos lo actualizaban a la vez. Un cerrojo solo en ese paso corrigió el problema y el resto siguió siendo asíncrono. También incluimos Doble DQN, DQN en duelo y REINFORCE como comparaciones adicionales.",
+    "fuente": "rl_trader/dqn.py; rl_trader/a3c.py; results/a3c_sin_cerrojo.csv"
+  },
+  {
+    "titulo": "Separar aprender, elegir y evaluar",
+    "segundos": 45,
+    "notas": "Cada episodio de entrenamiento ve una serie nueva del mismo mercado. Ajustamos aprendizaje, descuento, exploración, pérdida y número de episodios usando validación. El ajuste inicial usa tres semillas y cien series. El test principal usa otras cien series y diez semillas nuevas de entrenamiento; las series de test no eligen hiperparámetros. Utilizamos dos métricas diferentes. La rentabilidad final mide la variación del capital. G es la suma sin descuento de las recompensas del episodio y no equivale al porcentaje de rentabilidad compuesta. Mirar ambas ayuda a distinguir rendimiento económico y estabilidad del aprendizaje. Las ampliaciones nuevas se identifican como validación o test reservado.",
+    "fuente": "scripts/ajuste.py; rl_trader/evaluation.py; results/entrenamientos.csv"
+  },
+  {
+    "titulo": "En reversión, los métodos de actor rinden más",
+    "segundos": 55,
+    "notas": "Este gráfico muestra la rentabilidad mediana en el test principal de reversión. DQN obtiene aproximadamente un 22%, A3C un 27,5% y REINFORCE un 28,6%. Las referencias ayudan a interpretar la mejora: comprar y mantener queda ligeramente negativo y el agente aleatorio pierde más. Las variantes de DQN no cambian mucho el resultado. En los otros mercados la lectura es distinta: en ciclo los agentes siguen la tendencia, en browniano predominan no operar o comprar y mantener, y en regímenes se quedan fuera. Los porcentajes enormes del ciclo son una propiedad del generador sintético. No deben confundirse con una expectativa de rentabilidad en mercados reales.",
+    "fuente": "results/tabla.csv; mediana agregada en test, 100 series, 10 semillas por agente RL"
+  },
+  {
+    "titulo": "El mejor control no siempre es el último",
+    "segundos": 45,
+    "notas": "Aquí aparece el problema que motivó las mejoras. Con los mismos entrenamientos, evaluar el último control en vez del mejor elegido en validación reduce mucho la rentabilidad: DQN pasa del 22,1 al 2,6%, y A3C del 27,5 al 15,9%. Alcanzar un buen punto no significa conservarlo. Incluso con 12.800 episodios A3C seguía oscilando en reversión. Por eso probamos cambios en el aprendizaje y en la red objetivo. Las pruebas nuevas se realizan en validación, con comparación entre semillas, sin utilizar estos resultados de test para declarar que una alternativa ya generaliza.",
+    "fuente": "results/test_por_serie.csv.gz; versiones test y test_ultimo; report/informe.md"
+  },
+  {
+    "titulo": "DQN conserva mejor el rendimiento al final",
+    "segundos": 75,
+    "notas": "Primero comparamos DQN original con tres variantes: reducir la tasa de aprendizaje en la segunda mitad y combinar esa reducción con una red objetivo más rápida o más lenta. La opción más sencilla, reducir solo el aprendizaje hasta el 30%, fue prometedora. La repetimos frente al original con cinco semillas nuevas, manteniendo cuatrocientos episodios y la copia objetivo cada mil pasos. En las cinco semillas mejoraron tanto G del tramo final como la rentabilidad del último control. La media de esta última pasó del 6,28 al 18,13%; la oscilación bajó un 47% y la diferencia entre mejor y último control un 68%. El tiempo fue similar, unos 42 segundos. Es una confirmación exploratoria en validación: el test independiente de esta mejora todavía está pendiente.",
+    "fuente": "results/estabilidad_dqn_reversion/489842ba036f; cinco semillas 360–364"
+  },
+  {
+    "titulo": "A3C: menos oscilación no basta para mejorar",
+    "segundos": 65,
+    "notas": "En A3C estudiamos decaimiento del aprendizaje y de la entropía. Con 12.800 episodios algunas variantes parecían favorables, pero en el presupuesto de 3.200 episodios el resultado dependía del calendario y de la ejecución. Esta comparación muestra el compromiso: terminar con una tasa del 10% reduce mucho la oscilación, pero también la ganancia. Con el 30% la ganancia sigue algo por debajo del original. Ninguna alternativa cumplió a la vez conservar G y rentabilidad y reducir la oscilación. Conservamos A3C original, lo repetimos con cinco semillas nuevas y solo ese modelo llegó al test reservado. Allí obtuvo 26,67% con el mejor control y 16,17% con el último. Ese test no compara calendarios alternativos.",
+    "fuente": "results/estabilidad_a3c_reversion/b524af4c8dbb; test reservado: 1e9c1784f2f4/decision_66330b4a66cf_test.csv"
+  },
+  {
+    "titulo": "Más semillas evitan elegir por una buena racha",
+    "segundos": 65,
+    "notas": "Para hacer más fiable el ajuste no repetimos todas las combinaciones. Seleccionamos la configuración inicial y las dos alternativas más prometedoras para DQN y A3C en reversión. Son seis configuraciones por cinco semillas nuevas: treinta entrenamientos. El gráfico muestra diferencias pareadas frente a cada configuración inicial. La línea vertical es cero: si el intervalo la cruza, estos ensayos no separan claramente una ventaja. A3C mantiene aproximadamente un 30,58% y poca dispersión. En DQN una alternativa obtiene mayor media, pero su intervalo incluye cero. Por el criterio fijado conservamos ambas configuraciones. Son intervalos orientativos con pocas semillas, sin corrección por comparaciones múltiples; no una prueba de superioridad o de equivalencia.",
+    "fuente": "results/ajuste_robusto/e48237edf3e5/comparacion.csv; propuestas.csv"
+  },
+  {
+    "titulo": "Las pruebas extra también revelan límites",
+    "segundos": 45,
+    "notas": "Las pruebas complementarias ayudan a entender qué aporta cada decisión. MSE frente a MAE no mostró una ventaja clara con tres semillas. En DQN sin buffer, una pasada por episodio dio un 24,4% en reversión, pero repetir dieciséis veces el mismo episodio cayó al 10,8%, compatible con sobreajustar experiencias correlacionadas. En datos reales ninguno superó a comprar y mantener: en el S&P 500, A3C obtuvo cerca del 190%, frente al 193% de la referencia; DQN ganó menos, pero redujo la caída máxima. Solo hay una historia de test por activo. Por tanto, el buen resultado en simulación no demuestra una ventaja aplicable a cualquier mercado.",
+    "fuente": "results/lotes_test.csv.gz; results/reales_resultados.csv; report/informe.md, sección 3"
+  },
+  {
+    "titulo": "Conclusiones",
+    "segundos": 45,
+    "notas": "Nos quedamos con cuatro ideas. Primero, DQN y A3C aprenden estrategias coherentes con la información que observan, pero esa información limita el resultado. Segundo, reducir el aprendizaje al final mejora la estabilidad de DQN en validación y lo hemos confirmado con cinco semillas nuevas. Tercero, una curva más suave no basta: en A3C no aceptamos cambios que sacrificaban rendimiento. Cuarto, repetir pocas configuraciones con más semillas ayuda a reconocer cuándo la selección de hiperparámetros sigue siendo incierta. El paso pendiente más importante es evaluar la mejora confirmada de DQN en un test nuevo reservado. Conservar la separación entre ajuste y test es esencial para que la conclusión sea creíble.",
+    "fuente": "report/informe.pdf; resultados y limitaciones de los experimentos"
+  }
+]
